@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Marta — Agent Tester</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #f0f2f5;
+      height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      color: #1a1a2e;
+    }
+
+    /* ── Header ── */
+    header {
+      background: #fff;
+      border-bottom: 1px solid #e2e8f0;
+      padding: 10px 20px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-shrink: 0;
+    }
+
+    header h1 {
+      font-size: 15px;
+      font-weight: 700;
+      color: #0f172a;
+    }
+
+    #status-pills {
+      display: flex;
+      gap: 6px;
+      flex: 1;
+    }
+
+    .pill {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 100px;
+      background: #f1f5f9;
+      color: #64748b;
+      white-space: nowrap;
+    }
+    .pill.on  { background: #dcfce7; color: #15803d; }
+    .pill.off { background: #fef2f2; color: #dc2626; }
+    .pill.warn { background: #fef9c3; color: #854d0e; }
+
+    #header-actions { display: flex; gap: 8px; }
+
+    .btn {
+      font-size: 12px;
+      font-weight: 500;
+      padding: 6px 12px;
+      border-radius: 6px;
+      border: 1px solid #e2e8f0;
+      background: #fff;
+      color: #374151;
+      cursor: pointer;
+      transition: background 0.12s, border-color 0.12s;
+      white-space: nowrap;
+    }
+    .btn:hover { background: #f8fafc; border-color: #cbd5e1; }
+    .btn.danger:hover { background: #fef2f2; border-color: #fca5a5; color: #dc2626; }
+
+    /* ── Messages ── */
+    #messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px 20px 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .msg {
+      display: flex;
+      flex-direction: column;
+      max-width: 74%;
+    }
+    .msg.user      { align-self: flex-end;   align-items: flex-end; }
+    .msg.assistant { align-self: flex-start; align-items: flex-start; }
+    .msg.call      { align-self: flex-start; align-items: flex-start; max-width: 84%; }
+    .msg.system    { align-self: center;     align-items: center; max-width: 100%; }
+    .msg.error     { align-self: flex-start; align-items: flex-start; }
+
+    .msg-label {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #94a3b8;
+      margin-bottom: 4px;
+      padding: 0 4px;
+    }
+
+    .msg-bubble {
+      padding: 11px 15px;
+      border-radius: 16px;
+      line-height: 1.55;
+      font-size: 14px;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .msg.user .msg-bubble {
+      background: #2563eb;
+      color: #fff;
+      border-bottom-right-radius: 4px;
+    }
+    .msg.assistant .msg-bubble {
+      background: #fff;
+      color: #0f172a;
+      border: 1px solid #e2e8f0;
+      border-bottom-left-radius: 4px;
+    }
+    .msg.system .msg-bubble {
+      background: transparent;
+      color: #94a3b8;
+      font-size: 12px;
+      border: none;
+      padding: 4px;
+      text-align: center;
+    }
+    .msg.error .msg-bubble {
+      background: #fef2f2;
+      border: 1px solid #fca5a5;
+      color: #dc2626;
+      border-bottom-left-radius: 4px;
+    }
+
+    /* ── Call card ── */
+    .call-card {
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-left: 3px solid #2563eb;
+      border-radius: 12px;
+      padding: 14px 16px;
+      font-size: 14px;
+      min-width: 320px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .call-card-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 600;
+      color: #0f172a;
+    }
+    .call-card-header .call-icon { font-size: 18px; }
+
+    .call-card-row {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .call-card-row .row-label {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      color: #94a3b8;
+    }
+    .call-card-row .row-value {
+      font-size: 13px;
+      color: #374151;
+      white-space: pre-wrap;
+    }
+
+    .call-status {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      padding: 6px 10px;
+      border-radius: 8px;
+      background: #f8fafc;
+      color: #64748b;
+    }
+    .call-status.ringing { background: #eff6ff; color: #2563eb; }
+    .call-status.ended   { background: #f0fdf4; color: #15803d; }
+    .call-status.failed  { background: #fef2f2; color: #dc2626; }
+
+    .call-answer {
+      padding: 10px 12px;
+      background: #f8fafc;
+      border-radius: 8px;
+      font-size: 13px;
+      color: #1e293b;
+      line-height: 1.5;
+      border-left: 2px solid #22c55e;
+    }
+
+    /* ── Audio player ── */
+    .audio-row {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    audio {
+      width: 100%;
+      max-width: 280px;
+      height: 34px;
+      border-radius: 6px;
+    }
+
+    /* ── Transcript toggle ── */
+    .transcript-toggle {
+      font-size: 12px;
+      color: #64748b;
+      cursor: pointer;
+      text-decoration: underline;
+      text-decoration-style: dotted;
+      background: none;
+      border: none;
+      padding: 0;
+      text-align: left;
+    }
+    .transcript-toggle:hover { color: #374151; }
+
+    .transcript-body {
+      display: none;
+      font-size: 12px;
+      color: #64748b;
+      white-space: pre-wrap;
+      background: #f8fafc;
+      border-radius: 6px;
+      padding: 8px;
+      max-height: 200px;
+      overflow-y: auto;
+      line-height: 1.5;
+    }
+    .transcript-body.open { display: block; }
+
+    /* ── Typing indicator ── */
+    #typing {
+      display: none;
+      align-self: flex-start;
+      margin-bottom: 0;
+    }
+    #typing.visible { display: flex; }
+
+    .typing-bubble {
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-bottom-left-radius: 4px;
+      padding: 12px 16px;
+      border-radius: 16px;
+      display: flex;
+      gap: 4px;
+      align-items: center;
+    }
+    .dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: #94a3b8;
+      animation: bounce 1.2s infinite;
+    }
+    .dot:nth-child(2) { animation-delay: 0.2s; }
+    .dot:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes bounce {
+      0%, 80%, 100% { transform: translateY(0); }
+      40%           { transform: translateY(-6px); }
+    }
+
+    /* ── Input area ── */
+    #input-area {
+      background: #fff;
+      border-top: 1px solid #e2e8f0;
+      padding: 14px 20px;
+      display: flex;
+      gap: 10px;
+      align-items: flex-end;
+      flex-shrink: 0;
+    }
+
+    #input {
+      flex: 1;
+      resize: none;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 10px 14px;
+      font-size: 14px;
+      font-family: inherit;
+      line-height: 1.5;
+      outline: none;
+      transition: border-color 0.15s;
+      max-height: 140px;
+      overflow-y: auto;
+    }
+    #input:focus { border-color: #2563eb; }
+    #input::placeholder { color: #94a3b8; }
+
+    #btn-send {
+      padding: 10px 18px;
+      border-radius: 10px;
+      border: none;
+      background: #2563eb;
+      color: #fff;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      height: 42px;
+      flex-shrink: 0;
+      transition: background 0.15s;
+    }
+    #btn-send:hover { background: #1d4ed8; }
+    #btn-send:disabled { background: #93c5fd; cursor: not-allowed; }
+
+    .hint {
+      font-size: 11px;
+      color: #94a3b8;
+      padding: 0 4px 2px;
+      flex-shrink: 0;
+      align-self: flex-end;
+      white-space: nowrap;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>Marta</h1>
+    <div id="status-pills">
+      <span class="pill" id="pill-model">…</span>
+      <span class="pill" id="pill-voice">voice</span>
+      <span class="pill" id="pill-vapi">vapi</span>
+      <span class="pill" id="pill-sse">connecting…</span>
+    </div>
+    <div id="header-actions">
+      <button class="btn" id="btn-refresh">Reload context</button>
+      <button class="btn danger" id="btn-clear">Clear chat</button>
+    </div>
+  </header>
+
+  <div id="messages">
+    <div class="msg system">
+      <div class="msg-bubble">
+        Chat with Marta to test the prompt. Use <strong>/call +351xxxxxxxxx reason</strong> to trigger a real call.
+        <br>Enter to send · Shift+Enter for new line.
+      </div>
+    </div>
+  </div>
+
+  <div id="typing">
+    <div class="typing-bubble">
+      <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+    </div>
+  </div>
+
+  <div id="input-area">
+    <textarea id="input" rows="1" placeholder="Message Marta… or /call +351xxxxxxxxx reason"></textarea>
+    <button id="btn-send">Send</button>
+  </div>
+
+  <script>
+    const messagesEl = document.getElementById('messages');
+    const inputEl    = document.getElementById('input');
+    const btnSend    = document.getElementById('btn-send');
+    const typingEl   = document.getElementById('typing');
+
+    let sending = false;
+    // Map from call_id → call card DOM element (for live updates via SSE)
+    const callCards = {};
+
+    // ── Init ──────────────────────────────────────────────────────────
+    async function init() {
+      try {
+        const res  = await fetch('/api/status');
+        const data = await res.json();
+
+        setpill('pill-model', data.model, 'neutral');
+        setpill('pill-voice', data.elevenlabs_enabled ? '🔊 Voice on' : '🔇 Voice off',
+                data.elevenlabs_enabled ? 'on' : 'off');
+        setpill('pill-vapi',  data.vapi_enabled ? '📞 Vapi on' : '📞 Vapi off',
+                data.vapi_enabled ? 'on' : 'warn');
+      } catch {
+        appendSystem('Could not reach server.');
+      }
+
+      connectSSE();
+    }
+
+    function setpill(id, text, state) {
+      const el = document.getElementById(id);
+      el.textContent = text;
+      el.className = 'pill' + (state === 'on' ? ' on' : state === 'off' ? ' off' : state === 'warn' ? ' warn' : '');
+    }
+
+    // ── SSE ───────────────────────────────────────────────────────────
+    function connectSSE() {
+      const es = new EventSource('/api/events');
+
+      es.onopen = () => setpill('pill-sse', '● live', 'on');
+
+      es.onmessage = (e) => {
+        try {
+          const event = JSON.parse(e.data);
+          handleSSEEvent(event);
+        } catch {}
+      };
+
+      es.onerror = () => {
+        setpill('pill-sse', '○ reconnecting…', 'warn');
+        // EventSource auto-reconnects
+      };
+    }
+
+    function handleSSEEvent(event) {
+      if (event.type === 'call_ended') {
+        const card = callCards[event.call_id];
+        if (card) {
+          updateCallCard(card, event);
+        } else {
+          // Call was initiated before page load — append standalone result
+          appendCallResult(event);
+        }
+      }
+    }
+
+    // ── Send message ──────────────────────────────────────────────────
+    async function sendMessage() {
+      const text = inputEl.value.trim();
+      if (!text || sending) return;
+
+      sending = true;
+      btnSend.disabled = true;
+      inputEl.value = '';
+      autoResize();
+
+      appendMessage('user', text);
+      showTyping();
+
+      try {
+        const res = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: text }),
+        });
+
+        hideTyping();
+
+        const data = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+
+        if (!res.ok || data.error) {
+          appendMessage('error', data.error || 'Request failed');
+          return;
+        }
+
+        if (data.type === 'call_initiated') {
+          appendCallCard(data);
+        } else if (data.tool_call) {
+          // Claude wants to call but we didn't auto-trigger — show it as info
+          const tc = data.tool_call;
+          appendMessage('assistant',
+            `Sugestão de chamada para ${tc.input?.phone_number || '?'}\n` +
+            `Motivo: ${tc.input?.call_purpose || '?'}\n\n` +
+            `Use /call ${tc.input?.phone_number || ''} para confirmar.`
+          );
+        } else if (data.text) {
+          appendMessage('assistant', data.text);
+        }
+      } catch (err) {
+        hideTyping();
+        appendMessage('error', `Network error: ${err.message}`);
+      } finally {
+        sending = false;
+        btnSend.disabled = false;
+        inputEl.focus();
+      }
+    }
+
+    // ── Message helpers ───────────────────────────────────────────────
+    function appendMessage(role, text) {
+      const wrap = document.createElement('div');
+      wrap.className = `msg ${role}`;
+
+      if (role !== 'system') {
+        const label = document.createElement('div');
+        label.className = 'msg-label';
+        label.textContent = role === 'user' ? 'You' : role === 'assistant' ? 'Marta' : role;
+        wrap.appendChild(label);
+      }
+
+      const bubble = document.createElement('div');
+      bubble.className = 'msg-bubble';
+      bubble.textContent = text;
+      wrap.appendChild(bubble);
+
+      messagesEl.appendChild(wrap);
+      scrollToBottom();
+    }
+
+    function appendSystem(text) {
+      appendMessage('system', text);
+    }
+
+    // ── Call card ─────────────────────────────────────────────────────
+    function appendCallCard(data) {
+      const wrap = document.createElement('div');
+      wrap.className = 'msg call';
+
+      const label = document.createElement('div');
+      label.className = 'msg-label';
+      label.textContent = 'Call';
+      wrap.appendChild(label);
+
+      const card = document.createElement('div');
+      card.className = 'call-card';
+
+      // Header
+      const header = document.createElement('div');
+      header.className = 'call-card-header';
+      header.innerHTML = `<span class="call-icon">📞</span><span>${data.phone}</span>`;
+      card.appendChild(header);
+
+      // Purpose
+      card.appendChild(makeRow('Reason', data.purpose));
+
+      // First message
+      if (data.first_message) {
+        card.appendChild(makeRow('Opening line', data.first_message));
+      }
+
+      // Script
+      if (data.script) {
+        card.appendChild(makeRow('Script', data.script));
+      }
+
+      // Audio
+      if (data.audio_url) {
+        const audioRow = document.createElement('div');
+        audioRow.className = 'audio-row';
+        const lbl = document.createElement('div');
+        lbl.className = 'row-label';
+        lbl.textContent = 'Script audio';
+        const audio = document.createElement('audio');
+        audio.controls = true;
+        audio.src = data.audio_url;
+        audioRow.appendChild(lbl);
+        audioRow.appendChild(audio);
+        card.appendChild(audioRow);
+      } else if (data.audio_error) {
+        card.appendChild(makeRow('Audio', `⚠️ ${data.audio_error}`));
+      }
+
+      // Status
+      const statusEl = document.createElement('div');
+      if (data.call_id) {
+        statusEl.className = 'call-status ringing';
+        statusEl.innerHTML = '<span>⏳</span> Call in progress…';
+        callCards[data.call_id] = card;  // register for SSE updates
+      } else {
+        statusEl.className = 'call-status failed';
+        statusEl.innerHTML = `<span>❌</span> ${data.call_error || 'Call failed'}`;
+      }
+      card.appendChild(statusEl);
+      card._statusEl = statusEl;
+
+      wrap.appendChild(card);
+      messagesEl.appendChild(wrap);
+      scrollToBottom();
+    }
+
+    function updateCallCard(card, event) {
+      // Replace status with result
+      if (card._statusEl) {
+        card._statusEl.className = 'call-status ended';
+        card._statusEl.innerHTML = `<span>✅</span> Ended — ${event.ended_reason || 'completed'}`;
+      }
+
+      // Answer from Claude
+      const answerEl = document.createElement('div');
+      answerEl.className = 'call-answer';
+      answerEl.textContent = event.answer || '—';
+      card.appendChild(answerEl);
+
+      // Call recording (the actual recorded call audio from Vapi)
+      if (event.recording_url) {
+        const recRow = document.createElement('div');
+        recRow.className = 'audio-row';
+        const lbl = document.createElement('div');
+        lbl.className = 'row-label';
+        lbl.textContent = 'Call recording';
+        const audio = document.createElement('audio');
+        audio.controls = true;
+        audio.src = event.recording_url;
+        recRow.appendChild(lbl);
+        recRow.appendChild(audio);
+        card.appendChild(recRow);
+      }
+
+      // Transcript toggle
+      if (event.transcript) {
+        const toggleBtn = document.createElement('button');
+        toggleBtn.className = 'transcript-toggle';
+        toggleBtn.textContent = 'Show transcript';
+        const transcriptBody = document.createElement('div');
+        transcriptBody.className = 'transcript-body';
+        transcriptBody.textContent = event.transcript;
+        toggleBtn.onclick = () => {
+          const open = transcriptBody.classList.toggle('open');
+          toggleBtn.textContent = open ? 'Hide transcript' : 'Show transcript';
+        };
+        card.appendChild(toggleBtn);
+        card.appendChild(transcriptBody);
+      }
+
+      scrollToBottom();
+    }
+
+    function appendCallResult(event) {
+      // Standalone result (for calls initiated before page load)
+      const wrap = document.createElement('div');
+      wrap.className = 'msg call';
+      const label = document.createElement('div');
+      label.className = 'msg-label';
+      label.textContent = 'Call result';
+      wrap.appendChild(label);
+
+      const card = document.createElement('div');
+      card.className = 'call-card';
+
+      if (event.phone) {
+        const header = document.createElement('div');
+        header.className = 'call-card-header';
+        header.innerHTML = `<span class="call-icon">📞</span><span>${event.phone}</span>`;
+        card.appendChild(header);
+      }
+
+      const statusEl = document.createElement('div');
+      statusEl.className = 'call-status ended';
+      statusEl.innerHTML = `<span>✅</span> Ended — ${event.ended_reason || 'completed'}`;
+      card.appendChild(statusEl);
+
+      const answerEl = document.createElement('div');
+      answerEl.className = 'call-answer';
+      answerEl.textContent = event.answer || '—';
+      card.appendChild(answerEl);
+
+      if (event.recording_url) {
+        const recRow = document.createElement('div');
+        recRow.className = 'audio-row';
+        const lbl = document.createElement('div');
+        lbl.className = 'row-label';
+        lbl.textContent = 'Call recording';
+        const audio = document.createElement('audio');
+        audio.controls = true;
+        audio.src = event.recording_url;
+        recRow.appendChild(lbl);
+        recRow.appendChild(audio);
+        card.appendChild(recRow);
+      }
+
+      wrap.appendChild(card);
+      messagesEl.appendChild(wrap);
+      scrollToBottom();
+    }
+
+    function makeRow(label, value) {
+      const row = document.createElement('div');
+      row.className = 'call-card-row';
+      row.innerHTML = `<div class="row-label">${label}</div><div class="row-value">${escHtml(value)}</div>`;
+      return row;
+    }
+
+    function escHtml(s) {
+      return String(s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+    }
+
+    // ── Typing indicator ──────────────────────────────────────────────
+    function showTyping() {
+      typingEl.classList.add('visible');
+      messagesEl.parentElement.appendChild(typingEl); // keep at bottom
+      scrollToBottom();
+    }
+    function hideTyping() {
+      typingEl.classList.remove('visible');
+    }
+
+    // ── Header buttons ────────────────────────────────────────────────
+    document.getElementById('btn-clear').onclick = async () => {
+      await fetch('/api/history', { method: 'DELETE' });
+      const all = [...messagesEl.querySelectorAll('.msg')];
+      all.slice(1).forEach(el => el.remove()); // keep the first hint
+      appendSystem('Conversation cleared.');
+    };
+
+    document.getElementById('btn-refresh').onclick = async () => {
+      await fetch('/api/refresh', { method: 'POST' });
+      appendSystem('Context reloaded from disk.');
+    };
+
+    // ── Input ─────────────────────────────────────────────────────────
+    inputEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
+    });
+    inputEl.addEventListener('input', autoResize);
+    btnSend.addEventListener('click', sendMessage);
+
+    function autoResize() {
+      inputEl.style.height = 'auto';
+      inputEl.style.height = Math.min(inputEl.scrollHeight, 140) + 'px';
+    }
+
+    function scrollToBottom() {
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    init();
+  </script>
+</body>
+</html>

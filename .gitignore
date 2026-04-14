@@ -1,0 +1,26 @@
+# Environment
+.env
+
+# Logs
+*.log
+
+# Audio cache (generated at runtime)
+audio_cache/*
+!audio_cache/.gitkeep
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# Context knowledge files (may contain customer/sensitive data)
+# system_prompt.md is intentionally tracked — it's what you're testing.
+context/*.pdf
+context/*.csv
+context/*.json
+context/*.txt
+# Keep .gitkeep and system_prompt.md tracked
+!context/.gitkeep
+!context/system_prompt.md
