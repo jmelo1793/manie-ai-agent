@@ -55,7 +55,6 @@ TELEGRAM_ENABLED: bool = bool(os.getenv("TELEGRAM_BOT_TOKEN"))
 ELEVENLABS_ENABLED: bool = bool(os.getenv("ELEVENLABS_API_KEY") and os.getenv("ELEVENLABS_VOICE_ID"))
 VAPI_ENABLED: bool = bool(
     os.getenv("VAPI_API_KEY")
-    and os.getenv("VAPI_ASSISTANT_ID")
     and os.getenv("VAPI_PHONE_NUMBER_ID")
 )
 

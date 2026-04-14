@@ -1,5 +1,11 @@
 """
 Vapi API client — initiates and polls outbound phone calls.
+
+The call uses Vapi's native Anthropic integration so Vapi talks directly to
+Claude's API during the live conversation. No public endpoint or ngrok needed.
+
+One-time setup required in Vapi dashboard:
+  Provider Credentials → Add Anthropic API key
 """
 import asyncio
 import logging
@@ -34,28 +40,62 @@ def _headers() -> dict:
 
 async def initiate_call_async(
     to_number: str,
+    system_prompt: str = "",
     call_context: str = "",
     first_message: str = "",
 ) -> dict[str, Any]:
     """
-    Initiate an outbound call via Vapi.
+    Initiate an outbound call via Vapi using Vapi's native Anthropic integration.
+
+    Vapi calls Claude directly — no custom LLM endpoint, no public URL needed.
+    The full system prompt (persona + knowledge + call context) is injected once
+    at call creation and persists for the entire conversation.
 
     Returns:
         {'success': True, 'call_id': str}
         {'success': False, 'error': str}
     """
+    # Build the complete system prompt for this call
+    full_system = system_prompt
+    if call_context:
+        full_system += f"\n\n## This Call\n\n{call_context}"
+
+    # Inline assistant — Vapi drives the whole call using Claude directly
+    assistant: dict[str, Any] = {
+        "model": {
+            "provider": "anthropic",
+            "model": config.CLAUDE_CALL_MODEL,
+            "maxTokens": 200,
+            "temperature": 0.5,
+        },
+        "transcriber": {
+            "provider": "deepgram",
+            "language": "pt",       # Portuguese
+            "model": "nova-2",
+        },
+    }
+
+    if full_system:
+        assistant["model"]["systemPrompt"] = full_system
+
+    if first_message:
+        assistant["firstMessage"] = first_message
+
+    # ElevenLabs voice — injected only if configured, otherwise Vapi uses its default
+    if config.ELEVENLABS_ENABLED:
+        assistant["voice"] = {
+            "provider": "11labs",
+            "voiceId": config.ELEVENLABS_VOICE_ID,
+            "model": config.ELEVENLABS_MODEL_ID,
+            "stability": 0.5,
+            "similarityBoost": 0.75,
+        }
+
     payload: dict[str, Any] = {
         "phoneNumberId": config.VAPI_PHONE_NUMBER_ID,
         "customer": {"number": to_number},
-        "assistantId": config.VAPI_ASSISTANT_ID,
+        "assistant": assistant,
     }
-    overrides: dict[str, Any] = {}
-    if call_context:
-        overrides["variableValues"] = {"call_context": call_context}
-    if first_message:
-        overrides["firstMessage"] = first_message
-    if overrides:
-        payload["assistantOverrides"] = overrides
 
     try:
         async with httpx.AsyncClient(timeout=15) as client:
@@ -67,7 +107,8 @@ async def initiate_call_async(
             resp.raise_for_status()
             data = resp.json()
             call_id = data.get("id", "")
-            logger.info("Vapi call initiated: call_id=%s to=%s", call_id, to_number)
+            logger.info("Vapi call initiated: call_id=%s to=%s model=%s",
+                        call_id, to_number, config.CLAUDE_CALL_MODEL)
             return {"success": True, "call_id": call_id}
 
     except httpx.HTTPStatusError as exc:

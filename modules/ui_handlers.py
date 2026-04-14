@@ -202,13 +202,21 @@ async def _handle_call_command(args: str, context_manager: ContextManager) -> JS
     call_phone: str = tool_input.get("phone_number", phone)
     first_message: str = tool_input.get("first_message", "")
 
-    # Synthesise audio + initiate call in parallel (same pattern as Telegram handler)
+    # Build the complete system prompt for the live call
+    # (same structure vapi_handler used to build per-turn, now injected once at call start)
+    call_system = context_manager.get_system_prompt()
+    knowledge = context_manager.get_knowledge_string()
+    if knowledge:
+        call_system += f"\n\n## Knowledge Base\n\n{knowledge}"
+
+    # Synthesise script audio + initiate call in parallel
     from modules import elevenlabs_client
 
     audio_task = asyncio.create_task(elevenlabs_client.synthesize_async(script))
     call_task = asyncio.create_task(
         vapi_client.initiate_call_async(
             to_number=call_phone,
+            system_prompt=call_system,
             call_context=script,
             first_message=first_message,
         )

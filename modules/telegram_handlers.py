@@ -126,7 +126,16 @@ async def _handle_call_command(
 
     await status_msg.edit_text(f"Script gerado. A sintetizar voz e iniciar chamada para {call_phone}...")
 
-    call_result, audio_result = await _run_call_flow(call_phone, script, tool_call["id"], chat_id, first_message)
+    # Build full call system prompt (persona + knowledge) to inject into the live call
+    call_system = system_prompt
+    kn = knowledge_string  # already fetched above
+    if kn:
+        call_system += f"\n\n## Knowledge Base\n\n{kn}"
+
+    call_result, audio_result = await _run_call_flow(
+        call_phone, script, tool_call["id"], chat_id, first_message,
+        system_prompt=call_system,
+    )
 
     # Build status reply
     lines = []
@@ -209,16 +218,19 @@ async def _run_call_flow(
     tool_use_id: str,
     chat_id: int,
     first_message: str = "",
+    system_prompt: str = "",
 ) -> tuple[dict, dict]:
     """
-    Initiate a Retell call (Claude handles the live conversation via WebSocket).
-    ElevenLabs audio is still generated as a reference script for Telegram.
+    Initiate a Vapi call. Vapi drives the live conversation using Claude directly
+    (no custom LLM endpoint needed). ElevenLabs audio of the script is generated
+    in parallel as a reference recording.
     Returns (call_result, audio_result).
     """
     audio_task = asyncio.create_task(elevenlabs_client.synthesize_async(script))
     call_task = asyncio.create_task(
         vapi_client.initiate_call_async(
             to_number=phone,
+            system_prompt=system_prompt,
             call_context=script,
             first_message=first_message,
         )
