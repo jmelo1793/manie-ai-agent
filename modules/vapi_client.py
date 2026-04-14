@@ -67,6 +67,13 @@ async def initiate_call_async(
             "model": config.CLAUDE_CALL_MODEL,
             "maxTokens": 200,
             "temperature": 0.5,
+            # Built-in Vapi tools — Vapi intercepts these tool calls and acts on them:
+            #   endCall → hangs up the phone
+            #   dtmf    → presses keypad keys (IVR navigation)
+            "tools": [
+                {"type": "endCall"},
+                {"type": "dtmf"},
+            ],
         },
         "transcriber": {
             "provider": "deepgram",
