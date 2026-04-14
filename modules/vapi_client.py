@@ -62,11 +62,17 @@ async def initiate_call_async(
 
     # Inline assistant — Vapi drives the whole call using Claude directly
     assistant: dict[str, Any] = {
+        # Cut the dead-time Vapi adds after each user turn (default 0.4s)
+        "responseDelaySeconds": 0.1,
         "model": {
             "provider": "anthropic",
             "model": config.CLAUDE_CALL_MODEL,
-            "maxTokens": 200,
-            "temperature": 0.5,
+            # 150 covers the longest realistic turn (full CPE dictation + confirmation).
+            # Lower ceiling also nudges Claude toward shorter responses.
+            "maxTokens": 150,
+            # Low temperature — agent follows a strict script; no creativity needed.
+            # Also slightly faster at inference time.
+            "temperature": 0.1,
             # Built-in Vapi tools — Vapi intercepts these tool calls and acts on them:
             #   endCall → hangs up the phone
             #   dtmf    → presses keypad keys (IVR navigation)
@@ -77,8 +83,9 @@ async def initiate_call_async(
         },
         "transcriber": {
             "provider": "deepgram",
-            "language": "pt",       # Portuguese
-            "model": "nova-2",
+            # nova-2-phonecall is tuned for phone call audio (narrow-band, background noise)
+            "model": "nova-2-phonecall",
+            "language": "pt",
         },
     }
 
